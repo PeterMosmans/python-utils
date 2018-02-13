@@ -1,0 +1,6 @@
+# Emacs temporary and project files
+.#*
+\#*#
+.projectile
+# Python
+*.py[cod]
