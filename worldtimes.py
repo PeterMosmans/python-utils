@@ -27,7 +27,7 @@ except ImportError as exception:
     print(exception, file=sys.stderr)
     sys.exit(-1)
 
-VERSION = '0.4'
+VERSION = '0.5'
 DEFAULT_TIMEZONES = ['Australia/Sydney', 'Australia/Brisbane',
                      'Asia/Kuala_Lumpur', 'Asia/Singapore',
                      'Europe/Amsterdam', 'UTC', 'America/Chicago',
@@ -49,6 +49,8 @@ the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.'''))
     parser.add_argument('time', nargs='?', type=str,
                         help='Time to convert in HH:MM')
+    parser.add_argument('--date', action='store', type=str,
+                        help='Specific date to convert in YYYY-MM-DD')
     parser.add_argument('--from', action='store', type=str,
                         help='Timezone of the current or specified time')
     parser.add_argument('--to', action='store',
@@ -76,16 +78,16 @@ def main():
         sys.exit(-1)
     time_from = datetime.now(pytz.timezone('UTC'))
     try:
+        if not options['time']:
+            options['time'] = time_from.strftime('%H:%M')
+        if not options['date']:
+            options['date'] = time_from.strftime('%Y-%m-%d')
+        time_from = timezone_from.localize(datetime.strptime(options['date'] +
+                                                             options['time'],
+                                                             '%Y-%m-%d%H:%M'))
         if options['country']:
             print(' '.join(pytz.country_timezones[options['country']]))
             sys.exit(0)
-        if options['time']:
-            print('Using timezone {0} for specified time {1}'.format(timezone_from,
-                                                                     options['time']))
-            time_from = timezone_from.localize(datetime.strptime(time_from.
-                                                                 strftime('%Y-%m-%d ') +
-                                                                 options['time'],
-                                                                 '%Y-%m-%d %H:%M'))
         if options['to'] and options['to'] in pytz.all_timezones_set:
             if options['to'] not in timezones:
                 timezones = [options['to']] + timezones
