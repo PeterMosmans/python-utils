@@ -29,7 +29,9 @@ except ImportError as exception:
 
 VERSION = '0.4'
 DEFAULT_TIMEZONES = ['Australia/Sydney', 'Australia/Brisbane',
-                     'Europe/Amsterdam', 'UTC', 'America/Chicago', 'US/Mountain']
+                     'Asia/Kuala_Lumpur', 'Asia/Singapore',
+                     'Europe/Amsterdam', 'UTC', 'America/Chicago',
+                     'US/Mountain']
 
 
 def parse_arguments(banner):
