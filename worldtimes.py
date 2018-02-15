@@ -96,7 +96,7 @@ def main():
         print('Unknown timezone: {0}'.format(exception), file=sys.stderr)
         sys.exit(-1)
     except KeyError as exception:
-        print('Could not find country code: {0}'.format(exception), file=sys.stderr)
+        print('Could not find country: {0}'.format(exception), file=sys.stderr)
         sys.exit(-1)
     except ValueError as exception:
         print('Could not convert time: {0}'.format(exception), file=sys.stderr)
