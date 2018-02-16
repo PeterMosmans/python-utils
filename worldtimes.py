@@ -21,17 +21,43 @@ import sys
 import textwrap
 
 try:
+    import colorama
     import pytz
+    import termcolor
     import tzlocal
 except ImportError as exception:
-    print(exception, file=sys.stderr)
+    print('Please install all required libraries (see requirements.txt): {0}'.format(exception),
+          file=sys.stderr)
     sys.exit(-1)
 
-VERSION = '0.5'
+VERSION = '0.7'
 DEFAULT_TIMEZONES = ['Australia/Sydney', 'Australia/Brisbane',
                      'Asia/Kuala_Lumpur', 'Asia/Singapore',
                      'Europe/Amsterdam', 'UTC', 'America/Chicago',
                      'US/Mountain']
+
+
+def display_times(timezone_times, from_timezone, to_timezone):
+    """Display times in each timezone."""
+    colorama.init()
+    for timezone, timestring in timezone_times:
+        if timezone.lower() == unicode(from_timezone).lower():
+            termcolor.cprint('{0:20} {1}'.format(timezone, timestring),
+                             'green', attrs=['bold'])
+        elif timezone.lower() == unicode(to_timezone).lower():
+            termcolor.cprint('{0:20} {1}'.format(timezone, timestring),
+                             attrs=['bold'])
+        else:
+            print('{0:20} {1}'.format(timezone, timestring))
+
+
+def list_countries(country):
+    """List available country codes and exit."""
+    try:
+        print(' '.join(pytz.country_timezones[country]))
+    except KeyError as exception:
+        print('Could not find country: {0}'.format(exception), file=sys.stderr)
+    sys.exit(0)
 
 
 def parse_arguments(banner):
@@ -62,55 +88,65 @@ the Free Software Foundation, either version 3 of the License, or
     return vars(parser.parse_args())
 
 
-def main():
-    """Main program loop."""
-    banner = 'worldtimes version {0}'.format(VERSION)
-    time_format = '%z %Y-%m-%d %H:%M %Z'
-    options = parse_arguments(banner)
-    timezones = DEFAULT_TIMEZONES
+def set_datetime(from_time, from_date, from_timezone):
+    """Set the datetime according to time, date and timezone."""
     try:
-        if not options['from']:
-            timezone_from = tzlocal.get_localzone()
-        else:
-            timezone_from = pytz.timezone(options['from'])
-    except pytz.exceptions.UnknownTimeZoneError as exception:
-        print('Unknown timezone: {0}'.format(options['from']))
-        sys.exit(-1)
-    time_from = datetime.now(pytz.timezone('UTC'))
-    try:
-        if not options['time']:
-            options['time'] = time_from.strftime('%H:%M')
-        if not options['date']:
-            options['date'] = time_from.strftime('%Y-%m-%d')
-        time_from = timezone_from.localize(datetime.strptime(options['date'] +
-                                                             options['time'],
-                                                             '%Y-%m-%d%H:%M'))
-        if options['country']:
-            print(' '.join(pytz.country_timezones[options['country']]))
-            sys.exit(0)
-        if options['to'] and options['to'] in pytz.all_timezones_set:
-            if options['to'] not in timezones:
-                timezones = [options['to']] + timezones
-        if options['from'] in pytz.all_timezones_set:
-            if options['from'] not in timezones:
-                timezones = [options['from']] + timezones
-    except pytz.exceptions.UnknownTimeZoneError as exception:
-        print('Unknown timezone: {0}'.format(exception), file=sys.stderr)
-        sys.exit(-1)
-    except KeyError as exception:
-        print('Could not find country: {0}'.format(exception), file=sys.stderr)
-        sys.exit(-1)
+        time_from = datetime.now(from_timezone)
+        if not from_time:
+            from_time = time_from.strftime('%H:%M')
+        if not from_date:
+            from_date = time_from.strftime('%Y-%m-%d')
+        time_from = from_timezone.localize(datetime.strptime(from_date + ' ' +
+                                                             from_time,
+                                                             '%Y-%m-%d %H:%M'))
     except ValueError as exception:
         print('Could not convert time: {0}'.format(exception), file=sys.stderr)
         sys.exit(-1)
+    return time_from
+
+
+def sort_times(timezones, from_datetime, additional_zones):
+    """Add additional zones, and create a list of sorted times according to timezone."""
+    for zone in additional_zones:
+        if unicode(zone) not in timezones:
+            timezones.append(unicode(zone))
+    sorted_times = [(item, from_datetime.astimezone(pytz.timezone(item)).
+                     strftime('%z %Y-%m-%d %H:%M %Z')) for item in timezones]
+    sorted(sorted_times, key=lambda x: int(x[1].split()[0]))
+    return sorted_times
+
+
+def validate_timezones(from_timezone, to_timezone):
+    """Validate timezones."""
+    try:
+        if not from_timezone:
+            from_timezone = tzlocal.get_localzone()
+        else:
+            from_timezone = pytz.timezone(from_timezone)
+        if not to_timezone:
+            to_timezone = tzlocal.get_localzone()
+        else:
+            to_timezone = pytz.timezone(to_timezone)
+    except pytz.exceptions.UnknownTimeZoneError as exception:
+        print('Unknown timezone: {0}'.format(exception))
+        sys.exit(-1)
+    return from_timezone, to_timezone
+
+
+def main():
+    """Main program loop."""
+    banner = 'worldtimes version {0}'.format(VERSION)
+    options = parse_arguments(banner)
     if options['list']:
         print(' '.join(pytz.all_timezones_set))
         sys.exit(0)
-    timezone_times = [(item, time_from.astimezone(pytz.timezone(item)).
-                       strftime(time_format)) for item in timezones]
-    sorted(timezone_times, key=lambda x: int(x[1].split()[0]))
-    for timezone, timestring in timezone_times:
-        print('{0:20} {1}'.format(timezone, timestring))
+    if options['country']:
+        list_countries(options['country'])
+    timezones = DEFAULT_TIMEZONES
+    from_timezone, to_timezone = validate_timezones(options['from'], options['to'])
+    from_datetime = set_datetime(options['time'], options['date'], from_timezone)
+    sorted_times = sort_times(timezones, from_datetime, [from_timezone, to_timezone])
+    display_times(sorted_times, from_timezone, to_timezone)
 
 
 if __name__ == "__main__":
