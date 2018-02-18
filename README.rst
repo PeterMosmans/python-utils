@@ -8,6 +8,50 @@ Don't forget to install the necessary dependencies that are specified in
 
 :code:`pip install -r requirements.txt`
 
+
+*******************
+convert_currency.py
+*******************
+
+::
+
+   usage: convert_currency.py [-h] [--amount AMOUNT] [--date DATE] [--fee FEE]
+                              [--from FROM] [--to TO]
+                              [amount]
+
+   convert_currency version 0.5 - Convert between currencies using official exchange rates
+
+   Copyright (C) 2017-2018 Peter Mosmans [Go Forward]
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   positional arguments:
+     amount           Amount to convert
+
+   optional arguments:
+     -h, --help       show this help message and exit
+     --amount AMOUNT  Amount to convert from
+     --date DATE      Specify date (default today, 2018-02-18)
+     --fee FEE        Exchange rate fee in % (default 2.5)
+     --from FROM      Currency symbol to convert from (default EUR)
+     --to TO          Currency symbol to convert to (default EUR)
+
+Usage examples
+==============
+
+Convert USD 500 to EUR on 2013-03-07
+
+::
+  
+   % ./convert_currency.py --from USD 500 --date 2013-03-07
+   
+   Converting from USD to EUR
+   2013-03-07       0.74989    0.76864    0.78786
+     500.0 USD =     374.95     384.32     393.93 EUR
+
 *************
 worldtimes.py
 *************
