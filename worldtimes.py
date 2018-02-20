@@ -30,7 +30,7 @@ except ImportError as exception:
           file=sys.stderr)
     sys.exit(-1)
 
-VERSION = '0.7'
+VERSION = '0.8'
 DEFAULT_TIMEZONES = ['Australia/Sydney', 'Australia/Brisbane',
                      'Asia/Kuala_Lumpur', 'Asia/Singapore',
                      'Europe/Amsterdam', 'UTC', 'America/Chicago',
@@ -122,11 +122,11 @@ def validate_timezones(from_timezone, to_timezone):
         if not from_timezone:
             from_timezone = tzlocal.get_localzone()
         else:
-            from_timezone = pytz.timezone(from_timezone)
+            from_timezone = pytz.timezone(from_timezone.title())
         if not to_timezone:
             to_timezone = tzlocal.get_localzone()
         else:
-            to_timezone = pytz.timezone(to_timezone)
+            to_timezone = pytz.timezone(to_timezone.title())
     except pytz.exceptions.UnknownTimeZoneError as exception:
         print('Unknown timezone: {0}'.format(exception))
         sys.exit(-1)
