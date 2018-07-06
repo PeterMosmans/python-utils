@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""pptxtopng - Export PowerPoint slides to PNG files
+"""pptxtopng - Export PowerPoint slides as PNG files
 
 Copyright (C) 2018 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
@@ -86,7 +86,7 @@ it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.'''))
     parser.add_argument("slides", nargs="?", type=str, default="slides.pptx",
-                        help="PowerPoint slidedeck (default %(default)s")
+                        help="PowerPoint slidedeck (default %(default)s)")
     parser.add_argument("-o", "--output", action="store", type=str,
                         default=".", help="Output path (default %(default)s)")
     parser.add_argument('--debug', action='store_true',
