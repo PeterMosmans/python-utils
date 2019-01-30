@@ -159,7 +159,10 @@ def copy_slides(source, dest, range_from, range_to):
         if os.path.isfile(file_source):
             file_dest = os.path.join(windows_path(os.path.join(os.getcwd(), dest)), "Slide{0}.PNG".format(index))
             logging.info("Copying {0} to {1}".format(file_source, file_dest))
-            copyfile(file_source, file_dest)
+            try:
+                copyfile(file_source, file_dest)
+            except PermissionError as exception:
+                logging.error("Could not copy %s to %s: %s", file_source, file_dest, exception)
 
 
 def close_presentation(powerpoint, slidename):
