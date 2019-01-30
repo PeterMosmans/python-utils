@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """pptxtopng - Export PowerPoint slides as PNG files
@@ -20,6 +20,8 @@ import logging
 import os
 import sys
 import textwrap
+from shutil import copyfile
+
 
 try:
     import comtypes.client
@@ -28,7 +30,8 @@ except ImportError as exception:
           file=sys.stderr)
     sys.exit(-1)
 
-VERSION = '0.2'
+__title__ = "pptxtopng"
+__version__ = "0.4.0"
 
 
 class LogFormatter(logging.Formatter):
@@ -87,6 +90,12 @@ the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.'''))
     parser.add_argument("slides", nargs="?", type=str, default="slides.pptx",
                         help="PowerPoint slidedeck (default %(default)s)")
+    parser.add_argument("--from", action="store", type=int,
+                        help="Copy slide range from")
+    parser.add_argument("--to", action="store", type=int,
+                        help="Copy slide range to")
+    parser.add_argument("--copy", action="store", type=str,
+                        help="Copy slide rannge output folder")
     parser.add_argument("-o", "--output", action="store", type=str,
                         default=".", help="Output path (default %(default)s)")
     parser.add_argument('--debug', action='store_true',
@@ -113,7 +122,7 @@ def get_presentation(powerpoint, path, name):
 
 def windows_path(pathname):
     """Convert non-Windows pathname into Windows pathname."""
-    return unicode.replace(unicode(pathname), '/', '\\')
+    return pathname.replace('/', '\\')
 
 
 def get_powerpoint():
@@ -143,6 +152,15 @@ def check_path(path):
         logging.error("Could not find %s", path)
         sys.exit(-1)
 
+def copy_slides(source, dest, range_from, range_to):
+    """Copy @rangefrom to @rangeto slides from@source to @destination"""
+    for index in range(range_from, range_to + 1):  # Include to
+        file_source = os.path.join(source, "Slide{0}.PNG".format(index))
+        if os.path.isfile(file_source):
+            file_dest = os.path.join(windows_path(os.path.join(os.getcwd(), dest)), "Slide{0}.PNG".format(index))
+            logging.info("Copying {0} to {1}".format(file_source, file_dest))
+            copyfile(file_source, file_dest)
+
 
 def close_presentation(powerpoint, slidename):
     """Close presentation and powerpoint, if no presentations are open."""
@@ -157,7 +175,7 @@ def close_presentation(powerpoint, slidename):
 
 def main():
     """Main program loop."""
-    banner = "pptx_to_png version {0}".format(VERSION)
+    banner = "pptx_to_png version {0}".format(__version__)
     options = parse_arguments(banner)
     setup_logging(options)
     slidedeck = windows_path(os.path.join(os.getcwd(), options['slides']))
@@ -171,7 +189,8 @@ def main():
     presentation.Export(export_path, "png")
     if not opened:
         close_presentation(powerpoint, name)
-
+    if options["copy"]:
+        copy_slides(export_path, options["copy"], options["from"], options["to"])
 
 if __name__ == "__main__":
     main()
