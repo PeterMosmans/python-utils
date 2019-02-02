@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# pylint: disable=logging-fstring-interpolation
 
 """pptxtopng - Export PowerPoint slides as PNG files
 
-Copyright (C) 2018 Peter Mosmans [Go Forward]
+Copyright (C) 2018-2019 Peter Mosmans [Go Forward]
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -23,31 +24,33 @@ import textwrap
 from shutil import copyfile
 
 
+__title__ = "pptxtopng"
+__version__ = "0.5.0"
+
+
 try:
     import comtypes.client
 except ImportError as exception:
-    print('Please install all required libraries: {0}'.format(exception),
+    print(f"Please install all required libraries: {exception}",
           file=sys.stderr)
     sys.exit(-1)
-
-__title__ = "pptxtopng"
-__version__ = "0.4.0"
 
 
 class LogFormatter(logging.Formatter):
     """Class to format log messages based on their type."""
-    FORMATS = {logging.DEBUG: u"[d] %(message)s",
-               logging.INFO: u"[*] %(message)s",
-               logging.ERROR: u"[-] %(message)s",
-               logging.CRITICAL: u"[-] FATAL: %(message)s",
-               'DEFAULT': u"%(message)s"}
+    # pylint: disable=protected-access
+    FORMATS = {logging.DEBUG: logging._STYLES["{"][0]("[d] {message}"),
+               logging.INFO: logging._STYLES["{"][0]("[*] {message}"),
+               logging.ERROR: logging._STYLES["{"][0]("[-] {message}"),
+               logging.CRITICAL: logging._STYLES["{"][0]("[-] FATAL: {message}"),
+               "DEFAULT": logging._STYLES["{"][0]("{message}")}
 
     def format(self, record):
-        self._fmt = self.FORMATS.get(record.levelno, self.FORMATS['DEFAULT'])
+        self._style = self.FORMATS.get(record.levelno, self.FORMATS["DEFAULT"])
         return logging.Formatter.format(self, record)
 
 
-class LogFilter(object):  # pylint: disable=too-few-public-methods
+class LogFilter():  # pylint: disable=too-few-public-methods
     """Class to remove certain log levels."""
     def __init__(self, filterlist):
         self.__filterlist = filterlist
@@ -82,7 +85,7 @@ def parse_arguments(banner):
         description=textwrap.dedent(banner + '''\
  - Export PowerPoint slides as PNG files
 
-Copyright (C) 2018 Peter Mosmans [Go Forward]
+Copyright (C) 2018-2019 Peter Mosmans [Go Forward]
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -95,7 +98,11 @@ the Free Software Foundation, either version 3 of the License, or
     parser.add_argument("--to", action="store", type=int,
                         help="Copy slide range to")
     parser.add_argument("--copy", action="store", type=str,
-                        help="Copy slide rannge output folder")
+                        help="Copy slide range / section output folder")
+    parser.add_argument("--section", action="store", type=int,
+                        help="Copy specified section to output folder")
+    parser.add_argument("--single", action="store", type=int,
+                        help="Copy single slide")
     parser.add_argument("-o", "--output", action="store", type=str,
                         default=".", help="Output path (default %(default)s)")
     parser.add_argument('--debug', action='store_true',
@@ -104,7 +111,7 @@ the Free Software Foundation, either version 3 of the License, or
 
 
 def get_presentation(powerpoint, path, name):
-    """Retrieve handle to specified slidedeck."""
+    """Retrieve Presentation object of specified slidedeck."""
     opened = False
     for presentation in powerpoint.Presentations:
         opened = ((presentation.Path == path) and presentation.Name == name)
@@ -125,6 +132,15 @@ def windows_path(pathname):
     return pathname.replace('/', '\\')
 
 
+def get_section_range(presentation, section):
+    """Return the start and end range of a specified section."""
+    if section >= presentation.SectionProperties.Count:
+        logging.error(f"This presentation only has {presentation.SectionProperties.Count} sections")
+        sys.exit(-1)
+    range_from = presentation.SectionProperties.FirstSlide(section)
+    return range_from, range_from + presentation.SectionProperties.SlidesCount(section)
+
+
 def get_powerpoint():
     """Open Powerpoint application."""
     try:
@@ -142,27 +158,31 @@ def get_powerpoint():
 def check_file(name):
     """Checks whether filename and path exist."""
     if not os.path.isfile(name):
-        logging.error("Could not find %s", name)
+        logging.error(f"Could not find {name}")
         sys.exit(-1)
 
 
 def check_path(path):
     """Check whether pathname exists."""
     if not os.path.isdir(path):
-        logging.error("Could not find %s", path)
+        logging.error("Could not find {path}")
         sys.exit(-1)
 
-def copy_slides(source, dest, range_from, range_to):
+
+def copy_slides(source, dest, range_from, range_to, prefix=0):
     """Copy @rangefrom to @rangeto slides from@source to @destination"""
+    logging.info(f"Copying slides {range_from} from {range_to} to {dest}")
     for index in range(range_from, range_to + 1):  # Include to
-        file_source = os.path.join(source, "Slide{0}.PNG".format(index))
+        file_source = os.path.join(source, f"Slide{index}.PNG")
         if os.path.isfile(file_source):
-            file_dest = os.path.join(windows_path(os.path.join(os.getcwd(), dest)), "Slide{0}.PNG".format(index))
-            logging.info("Copying {0} to {1}".format(file_source, file_dest))
+            file_dest = os.path.join(windows_path(os.path.join(os.getcwd(), dest)),
+                                     f"Slide{prefix}-{index-range_from+1:02}.png")
             try:
                 copyfile(file_source, file_dest)
-            except PermissionError as exception:
-                logging.error("Could not copy %s to %s: %s", file_source, file_dest, exception)
+            except (FileNotFoundError, PermissionError) as exception:
+                logging.error(f"Could not copy {file_source} to {file_dest}:, {exception}")
+        else:
+            logging.error(f"Could not find slide {file_source}")
 
 
 def close_presentation(powerpoint, slidename):
@@ -178,7 +198,7 @@ def close_presentation(powerpoint, slidename):
 
 def main():
     """Main program loop."""
-    banner = "pptx_to_png version {0}".format(__version__)
+    banner = f"{__title__} version {__version__}"
     options = parse_arguments(banner)
     setup_logging(options)
     slidedeck = windows_path(os.path.join(os.getcwd(), options['slides']))
@@ -188,12 +208,21 @@ def main():
     name, path = os.path.basename(slidedeck), os.path.dirname(slidedeck)
     powerpoint = get_powerpoint()
     presentation, opened = get_presentation(powerpoint, path, name)
-    logging.info("Exporting presentation to %s", export_path)
+    logging.info(f"Exporting presentation to {export_path}")
     presentation.Export(export_path, "png")
+    if options["from"]:
+        range_from = options["from"]
+        if not options["to"]:
+            range_to = range_from
+    section = 0
+    if options["section"]:
+        section = options["section"]
+        range_from, range_to = get_section_range(presentation, section)
     if not opened:
         close_presentation(powerpoint, name)
     if options["copy"]:
-        copy_slides(export_path, options["copy"], options["from"], options["to"])
+        copy_slides(export_path, options["copy"], range_from, range_to, section)
+
 
 if __name__ == "__main__":
     main()
